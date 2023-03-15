@@ -1,0 +1,84 @@
+const bcrypt = require('bcryptjs');
+const User = require('../models/userModel');
+const jwt = require('jsonwebtoken');
+
+const registerUser = async (req, res, next) => {
+    const { username, email, password } = req.body;
+    //check whether all fields are filled
+    if (!username || !email || !password) {
+        return res.status(400).json({
+            message: 'Please enter all fields',
+        });
+    }
+    try {
+        const userExist = await User.findOne({ email: email});
+        if (userExist) {
+            return res.status(400).json({
+                message: 'User already exists'
+            });
+        }
+        //hash password before storing in database
+        const hashedPass = await bcrypt.hash(password, 10);
+        console.log(`Hashed password: ${hashedPass}`);
+        const user = await User.create({
+            username,
+            email,
+            password: hashedPass,
+        });
+        console.log(`User Created`);
+        return res.status(201).json({
+            _id: user._id,
+            username: user.username,
+            email: user.email,
+        });
+    }
+    catch (error) {
+        console.error(error);
+        return next(error);
+    }
+};
+
+const loginUser = async (req, res, next) => {
+    const { email, password } = req.body;
+    //check whether all fields are filled
+    if (!email || !password) {
+        return res.status(400).json({
+            message: 'Please enter all fields',
+        });
+    }
+    try {
+        const user = await User.findOne({ email: email});
+        const passwordMatch = await bcrypt.compare(password, user.password);
+        if (user && passwordMatch) {
+            const jwtToken = jwt.sign(
+                {
+                    id: user._id,
+                    username: user.username,
+                    email: user.email,
+                },
+                process.env.JWT_SECRET,
+                {
+                    expiresIn: '10m',
+                }
+            );
+            return res.status(200).json({
+                token: jwtToken,
+                user: {
+                    username: user.username,
+                    email: user.email,
+                },
+            });
+        }
+        else {
+            return res.status(401).json({
+                message: 'Email or password is incorrect',
+            });
+        }
+    }
+    catch (error) {
+        console.error(error);
+        return next(error);
+    }
+
+}
+module.exports = { registerUser, loginUser };
