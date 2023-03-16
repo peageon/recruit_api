@@ -27,7 +27,7 @@ const registerUser = async (req, res, next) => {
         });
         console.log(`User Created`);
         return res.status(201).json({
-            _id: user._id,
+            message: 'User created successfully',
             username: user.username,
             email: user.email,
         });
